@@ -1,8 +1,6 @@
 import yfinance as yf
 import os
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import precision_score
 from xgboost import XGBClassifier
 
 btcTicker = yf.Ticker("BTC-USD")
@@ -20,7 +18,6 @@ del btc["Stock Splits"]
 
 btc.columns = [c.lower() for c in btc.columns]
 
-# btc.plot.line(y="close", use_index=True)
 
 wikiLink = pd.read_csv("wikipedia_edits.csv", index_col=0, parse_dates=True)
 
@@ -28,18 +25,11 @@ wikiLink.index = pd.to_datetime(wikiLink.index).tz_localize('UTC')
 btc = btc.merge(wikiLink, left_index=True, right_index=True)
 btc["tomorrow"] = btc["close"].shift(-1)
 btc["target"] = (btc["tomorrow"] > btc["close"]).astype(int)
-# btc["target"].value_counts()
-
-model = RandomForestClassifier(n_estimators=100, min_samples_split=50, random_state=1)
 
 train = btc.iloc[:-200]
 test = btc.iloc[-200:]
 
 predictWords = ["close", "volume", "open", "high", "low", "edit_count", "sentiment", "neg_sentiment"]
-model.fit(train[predictWords], train["target"])
-
-predictions = model.predict(test[predictWords])
-predictions = pd.Series(predictions, index=test.index)
 
 def predict(train, test, predictWords, model):
     model.fit(train[predictWords], train["target"])
@@ -58,9 +48,6 @@ def backtest(data, model, predictWords, start=1095, step=150):
         predictionTotal.append(predictions)
     
     return pd.concat(predictionTotal)
-
-model = XGBClassifier(random_state=1, learning_rate=.1, n_estimators=200)
-predictions = backtest(btc, model, predictWords)
 
 def compute_rolling(btc):
     horizons = [2,7,60,365]
@@ -83,6 +70,6 @@ def compute_rolling(btc):
     return btc, newPredictors
 
 btc, newPredictors = compute_rolling(btc.copy())
-
+model = XGBClassifier(random_state=1, learning_rate=.1, n_estimators=200)
 predictions = backtest(btc, model, newPredictors)
 print(predictions)
